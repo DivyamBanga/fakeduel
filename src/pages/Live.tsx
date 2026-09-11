@@ -7,7 +7,7 @@ import { useLeagueEvents } from '@/hooks/useLeagueEvents'
 import { useIsDesktop } from '@/hooks/useMediaQuery'
 import { useLiveStore } from '@/store/live'
 
-export const LIVE_LEAGUES = ['nfl', 'ncaaf', 'mlb', 'nba', 'wnba', 'nhl', 'ncaab', 'epl', 'laliga', 'seriea', 'bundesliga', 'ligue1', 'mls', 'ucl', 'uel', 'ligamx', 'ufc', 'atp', 'wta', 'cfl']
+export const LIVE_LEAGUES = ['nfl', 'ncaaf', 'mlb', 'nba', 'wnba', 'nhl', 'epl', 'laliga', 'seriea', 'mls', 'ucl', 'ufc']
 
 export function LivePage() {
   const desktop = useIsDesktop()

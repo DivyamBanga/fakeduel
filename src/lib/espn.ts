@@ -301,18 +301,21 @@ export async function fetchLeagueEvents(league: LeagueDef, opts: { force?: boole
   const end = new Date(now.getTime() + league.daysAhead * DAY)
   const dates = `${fmtDate(start)}-${fmtDate(end)}`
   let events: GameEvent[] = []
+  let err: unknown = null
   try {
     events = await fetchScoreboard(league, { dates, force: opts.force })
-  } catch {
-    events = []
+  } catch (e) {
+    err = e
   }
   if (events.length === 0 && (league.id === 'nfl' || league.id === 'ncaaf' || league.id === 'cfl')) {
     try {
       events = await fetchScoreboard(league, { force: opts.force })
-    } catch {
-      events = []
+      err = null
+    } catch (e) {
+      err = err ?? e
     }
   }
+  if (err && events.length === 0) throw err
   const seen = new Set<string>()
   return events.filter((e) => {
     if (seen.has(e.id)) return false
@@ -526,32 +529,83 @@ export async function fetchRoster(league: LeagueDef, teamId: string): Promise<At
   }
 }
 
-interface EspnTeamsList {
-  sports?: { leagues?: { teams?: { team: EspnTeam }[] }[] }[]
+interface EspnStandings {
+  children?: { standings?: { entries?: { team: EspnTeam }[] }; children?: EspnStandings['children'] }[]
+  standings?: { entries?: { team: EspnTeam }[] }
 }
 
-export async function fetchTeams(league: LeagueDef): Promise<Record<string, Team>> {
-  const url = `${SITE}/${league.espnSport}/${league.espnLeague}/teams?limit=1000${league.groups ? `&groups=${league.groups}` : ''}`
-  try {
-    const raw = await cached(`teams:${league.id}`, () => fetchJson<EspnTeamsList>(url), { ttl: DAY, persist: true })
-    const out: Record<string, Team> = {}
-    for (const s of raw.sports ?? []) for (const l of s.leagues ?? []) for (const t of l.teams ?? []) {
-      const tm = t.team
-      out[tm.id] = {
-        id: tm.id,
-        abbreviation: tm.abbreviation ?? '',
-        name: tm.name ?? '',
-        displayName: tm.displayName ?? '',
-        shortDisplayName: tm.shortDisplayName ?? tm.name ?? '',
-        location: tm.location,
-        logo: tm.logos?.[0]?.href ?? tm.logo,
-        color: tm.color ? `#${tm.color}` : undefined,
-      }
-    }
-    return out
-  } catch {
-    return {}
+/** ESPN's CDN logo path is predictable, which covers endpoints that omit logos. */
+export function teamLogoUrl(league: LeagueDef, team: { id: string; abbreviation?: string }): string | undefined {
+  const abbr = team.abbreviation?.toLowerCase()
+  switch (league.id) {
+    case 'nfl': case 'nba': case 'mlb': case 'nhl': case 'wnba':
+      return abbr ? `https://a.espncdn.com/i/teamlogos/${league.espnLeague}/500/${abbr}.png` : undefined
+    case 'ncaaf': case 'ncaab': case 'ncaaw':
+      return `https://a.espncdn.com/i/teamlogos/ncaa/500/${team.id}.png`
+    case 'cfl':
+      return abbr ? `https://a.espncdn.com/i/teamlogos/cfl/500/${abbr}.png` : undefined
   }
+  if (league.sport === 'soccer') return `https://a.espncdn.com/i/teamlogos/soccer/500/${team.id}.png`
+  return undefined
+}
+
+function collectStandingsTeams(node: EspnStandings | undefined, out: Record<string, Team>, league: LeagueDef) {
+  if (!node) return
+  for (const e of node.standings?.entries ?? []) {
+    const tm = e.team
+    out[tm.id] = {
+      id: tm.id,
+      abbreviation: tm.abbreviation ?? '',
+      name: tm.name ?? '',
+      displayName: tm.displayName ?? '',
+      shortDisplayName: tm.shortDisplayName ?? tm.name ?? '',
+      location: tm.location,
+      logo: tm.logos?.[0]?.href ?? tm.logo ?? teamLogoUrl(league, tm),
+      color: tm.color ? `#${tm.color}` : undefined,
+    }
+  }
+  for (const c of node.children ?? []) collectStandingsTeams(c, out, league)
+}
+
+/** Team directory. The site "teams" endpoint has no CORS header, so use standings (which does) and fall back to the core API. */
+export async function fetchTeams(league: LeagueDef): Promise<Record<string, Team>> {
+  return cached(
+    `teamsdir:${league.id}`,
+    async () => {
+      const out: Record<string, Team> = {}
+      try {
+        const url = `https://site.api.espn.com/apis/v2/sports/${league.espnSport}/${league.espnLeague}/standings${league.groups ? `?group=${league.groups}` : ''}`
+        const raw = await fetchJson<EspnStandings>(url)
+        collectStandingsTeams(raw, out, league)
+      } catch {
+        /* fall through */
+      }
+      if (Object.keys(out).length >= 8) return out
+      try {
+        const yr = seasonYearFor(league)
+        const list = await fetchJson<{ items?: { $ref: string }[] }>(`${CORE}/${league.espnSport}/leagues/${league.espnLeague}/seasons/${yr}/teams?limit=200${league.groups ? `&groups=${league.groups}` : ''}`)
+        const refs = (list.items ?? []).map((i) => secure(i.$ref)).slice(0, 140)
+        const teams = await Promise.all(refs.map((r) => fetchJson<EspnTeam & { logos?: { href: string }[] }>(r).catch(() => null)))
+        for (const tm of teams) {
+          if (!tm) continue
+          out[tm.id] = {
+            id: tm.id,
+            abbreviation: tm.abbreviation ?? '',
+            name: tm.name ?? '',
+            displayName: tm.displayName ?? '',
+            shortDisplayName: tm.shortDisplayName ?? tm.name ?? '',
+            location: tm.location,
+            logo: tm.logos?.[0]?.href ?? teamLogoUrl(league, tm),
+            color: tm.color ? `#${tm.color}` : undefined,
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+      return out
+    },
+    { ttl: DAY, persist: true },
+  )
 }
 
 interface EspnAthlete {

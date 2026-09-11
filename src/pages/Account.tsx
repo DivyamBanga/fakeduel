@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronRight } from '@/components/Icons'
 import { Card } from '@/components/shell/SectionHeader'
@@ -22,7 +22,8 @@ export function AccountPage() {
   const balance = useAccount((s) => s.balance)
   const bonus = useAccount((s) => s.bonusBalance)
   const rewards = useAccount((s) => s.rewards)
-  const tokens = useAccount((s) => s.tokens.filter((t) => !t.used && new Date(t.expiresAt).getTime() > Date.now()))
+  const allTokens = useAccount((s) => s.tokens)
+  const tokens = useMemo(() => allTokens.filter((t) => !t.used && new Date(t.expiresAt).getTime() > Date.now()), [allTokens])
   const bets = useAccount((s) => s.bets)
   const reset = useAccount((s) => s.resetAccount)
   const [confirm, setConfirm] = useState(false)

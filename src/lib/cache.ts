@@ -84,11 +84,52 @@ export function pruneCacheStorage() {
   }
 }
 
-export async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init)
-  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`)
-  return res.json() as Promise<T>
+/* ------------------------- throttled, retrying fetch ------------------------- */
+
+const MAX_CONCURRENT = 5
+let active = 0
+const queue: (() => void)[] = []
+
+function acquire(): Promise<void> {
+  if (active < MAX_CONCURRENT) {
+    active++
+    return Promise.resolve()
+  }
+  return new Promise((resolve) => queue.push(() => { active++; resolve() }))
 }
+
+function release() {
+  active--
+  const next = queue.shift()
+  if (next) next()
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/** Fetch JSON with a small concurrency limit and retries (ESPN's edge drops CORS headers when rate-limited). */
+export async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
+  await acquire()
+  try {
+    let lastErr: unknown
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await fetch(url, init)
+        if (res.status === 429 || res.status >= 500) throw new Error(`HTTP ${res.status}`)
+        if (!res.ok) throw new NonRetryableError(`HTTP ${res.status} for ${url}`)
+        return (await res.json()) as T
+      } catch (e) {
+        if (e instanceof NonRetryableError) throw e
+        lastErr = e
+        await sleep(400 * (attempt + 1) + Math.random() * 300)
+      }
+    }
+    throw lastErr instanceof Error ? lastErr : new Error(`Failed to fetch ${url}`)
+  } finally {
+    release()
+  }
+}
+
+class NonRetryableError extends Error {}
 
 export const MINUTE = 60_000
 export const HOUR = 60 * MINUTE

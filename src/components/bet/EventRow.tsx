@@ -45,10 +45,10 @@ export function EventRow({ ev, league, showLeague }: { ev: GameEvent; league: Le
   const athlete = !!league.athleteEvent
   const cols: ('spread' | 'ml' | 'total')[] = athlete ? ['ml'] : ['spread', 'ml', 'total']
 
-  const btn = (m: Market | undefined, side: string, lineText?: (s: Selection) => string) => {
+  const btn = (m: Market | undefined, side: string, lineText?: (s: Selection) => string, key?: string) => {
     const s = cell(m, side)
-    if (!s || !m) return <div className="rounded border border-dashed flex items-center justify-center text-[11px]" style={{ borderColor: 'var(--fd-line)', height: 44, color: 'var(--fd-fg-3)' }}>—</div>
-    return <OddsButton line={lineText ? lineText(s) : undefined} odds={s.odds} selected={has(s.id)} suspended={isFinal} onClick={() => toggle(ev, m, s)} className="w-full" />
+    if (!s || !m) return <div key={key} className="rounded border border-dashed flex items-center justify-center text-[11px]" style={{ borderColor: 'var(--fd-line)', height: 44, color: 'var(--fd-fg-3)' }}>—</div>
+    return <OddsButton key={key} line={lineText ? lineText(s) : undefined} odds={s.odds} selected={has(s.id)} suspended={isFinal} onClick={() => toggle(ev, m, s)} className="w-full" />
   }
 
   const teamName = (c: GameEvent['home']) => (desktop || athlete ? c.team.displayName : `${c.team.abbreviation} ${c.team.shortDisplayName}`)
@@ -95,8 +95,8 @@ export function EventRow({ ev, league, showLeague }: { ev: GameEvent; league: Le
           ) : null}
         </div>
         <div className="grid gap-x-1 gap-y-2 ml-2 shrink-0" style={{ gridTemplateColumns: `repeat(${cols.length}, ${colWidth ? `${colWidth}px` : 'minmax(64px, 1fr)'})`, width: desktop ? undefined : `${cols.length * 33}%`, alignContent: 'start', paddingTop: 2 }}>
-          {cols.map((c) => (c === 'spread' ? btn(mk.spread, 'away', (s) => formatLine(s.line ?? 0)) : c === 'ml' ? btn(ml, 'away') : btn(mk.total, 'over', (s) => `O ${s.line}`)))}
-          {cols.map((c) => (c === 'spread' ? btn(mk.spread, 'home', (s) => formatLine(s.line ?? 0)) : c === 'ml' ? btn(ml, 'home') : btn(mk.total, 'under', (s) => `U ${s.line}`)))}
+          {cols.map((c) => (c === 'spread' ? btn(mk.spread, 'away', (s) => formatLine(s.line ?? 0), `a-${c}`) : c === 'ml' ? btn(ml, 'away', undefined, `a-${c}`) : btn(mk.total, 'over', (s) => `O ${s.line}`, `a-${c}`)))}
+          {cols.map((c) => (c === 'spread' ? btn(mk.spread, 'home', (s) => formatLine(s.line ?? 0), `h-${c}`) : c === 'ml' ? btn(ml, 'home', undefined, `h-${c}`) : btn(mk.total, 'under', (s) => `U ${s.line}`, `h-${c}`)))}
           {league.hasDraw && ml ? (
             <>
               {cols.length === 3 ? <span /> : null}

@@ -36,7 +36,7 @@ export function ColumnHeader({ league, label }: { league: LeagueDef; label: stri
   )
 }
 
-export function EventList({ events, league, loading, groupByDay = true, limit, emptyText = 'No events available', showLeague }: { events: GameEvent[]; league?: LeagueDef; loading?: boolean; groupByDay?: boolean; limit?: number; emptyText?: string; showLeague?: boolean }) {
+export function EventList({ events, league, loading, groupByDay = true, limit, emptyText = 'No events available', showLeague, error, onRetry }: { events: GameEvent[]; league?: LeagueDef; loading?: boolean; groupByDay?: boolean; limit?: number; emptyText?: string; showLeague?: boolean; error?: string | null; onRetry?: () => void }) {
   const list = limit ? events.slice(0, limit) : events
   const groups = useMemo(() => {
     const out: { key: string; label: string; events: GameEvent[] }[] = []
@@ -62,6 +62,19 @@ export function EventList({ events, league, loading, groupByDay = true, limit, e
       </div>
     )
   }
+  if (!list.length && error)
+    return (
+      <div>
+        <EmptyState title="Couldn't load games" body="The sports data feed didn't respond. Check your connection and try again." />
+        {onRetry ? (
+          <div className="pb-6 text-center">
+            <button onClick={onRetry} className="h-[40px] px-6 rounded text-[14px] font-semibold text-white" style={{ background: '#128000' }}>
+              Retry
+            </button>
+          </div>
+        ) : null}
+      </div>
+    )
   if (!list.length) return <EmptyState title={emptyText} body="Check back soon for more betting options." />
 
   return (

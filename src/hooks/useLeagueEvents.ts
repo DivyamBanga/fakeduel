@@ -30,6 +30,7 @@ export function useLeagueEvents(leagueIds: string[], opts: { enabled?: boolean }
       if (!enabled) return
       const ids = key ? key.split(',') : []
       try {
+        let failures = 0
         const results = await Promise.all(
           ids.map(async (id) => {
             const league = LEAGUE_BY_ID[id]
@@ -37,10 +38,12 @@ export function useLeagueEvents(leagueIds: string[], opts: { enabled?: boolean }
             try {
               return await fetchLeagueEvents(league, { force })
             } catch {
+              failures++
               return []
             }
           }),
         )
+        if (failures > 0 && failures === ids.length) throw new Error('Sports data feed unavailable')
         const all = results.flat().filter((e) => !(e.status.state === 'post' && Date.now() - new Date(e.date).getTime() > 8 * 3600_000))
         all.sort((a, b) => {
           const la = a.status.state === 'in' ? 0 : 1

@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { BoltIcon, InfoIcon } from '@/components/Icons'
 import { Card } from '@/components/shell/SectionHeader'
 import { formatMoney } from '@/lib/odds'
@@ -39,7 +40,8 @@ export function RewardsPage() {
   const claim = useAccount((s) => s.claimWeekly)
   const addToken = useAccount((s) => s.addToken)
   const claimPromo = useAccount((s) => s.claimPromo)
-  const tokens = useAccount((s) => s.tokens.filter((t) => !t.used && new Date(t.expiresAt).getTime() > Date.now()))
+  const allTokens = useAccount((s) => s.tokens)
+  const tokens = useMemo(() => allTokens.filter((t) => !t.used && new Date(t.expiresAt).getTime() > Date.now()), [allTokens])
   const bonus = useAccount((s) => s.bonusBalance)
   const week = isoWeek()
   const claimedThisWeek = rewards.claimedWeekly.includes(week)

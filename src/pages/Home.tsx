@@ -25,7 +25,7 @@ export function HomePage() {
   const [chip, setChip] = useState('nfl')
   const [sgpOpen, setSgpOpen] = useState(true)
   const leagueIds = useMemo(() => leagueIdsForChip(chip), [chip])
-  const { events, loading } = useLeagueEvents(leagueIds)
+  const { events, loading, error, refresh } = useLeagueEvents(leagueIds)
   const league = LEAGUE_BY_ID[chip] ?? LEAGUE_BY_ID[leagueIds[0]]
   const futures = useFutures(LEAGUE_BY_ID[chip], !!LEAGUE_BY_ID[chip])
   const upcoming = events.filter((e) => e.status.state !== 'post')
@@ -108,7 +108,7 @@ export function HomePage() {
       <Card>
         <SectionHeader title={`${LEAGUE_BY_ID[chip]?.name ?? SPORT_BY_ID[chip]?.name ?? ''} Odds`} right={<MoreLink to={`/navigation/${chip}`} label={`More ${LEAGUE_BY_ID[chip]?.name ?? SPORT_BY_ID[chip]?.name ?? ''}`} />} />
         {league ? <ColumnHeader league={league} label={league.name} /> : null}
-        <EventList events={upcoming} league={LEAGUE_BY_ID[chip]} loading={loading} limit={desktop ? 12 : 10} showLeague={!LEAGUE_BY_ID[chip]} />
+        <EventList events={upcoming} league={LEAGUE_BY_ID[chip]} loading={loading} limit={desktop ? 12 : 10} showLeague={!LEAGUE_BY_ID[chip]} error={error} onRetry={refresh} />
       </Card>
     </div>
   )

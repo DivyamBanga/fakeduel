@@ -37,7 +37,7 @@ export function LeaguePage() {
   const [subLeague, setSubLeague] = useState('all')
   useEffect(() => setSubLeague('all'), [slug])
   const leagueIds = league ? [league.id] : subLeague === 'all' ? sportLeagues.map((l) => l.id) : [subLeague]
-  const { events, loading } = useLeagueEvents(leagueIds, { enabled: leagueIds.length > 0 })
+  const { events, loading, error, refresh } = useLeagueEvents(leagueIds, { enabled: leagueIds.length > 0 })
   const futures = useFutures(league, !!league)
   const tab = params.get('tab') ?? 'games'
   const setTab = (t: string) => setParams(t === 'games' ? {} : { tab: t }, { replace: true })
@@ -103,7 +103,7 @@ export function LeaguePage() {
             <Card>
               <SectionHeader title={`${league.name} Odds`} />
               <ColumnHeader league={league} label={league.name} />
-              <EventList events={upcoming} league={league} loading={loading} />
+              <EventList events={upcoming} league={league} loading={loading} error={error} onRetry={refresh} />
             </Card>
           ) : (
             (subLeague === 'all' ? sportLeagues : sportLeagues.filter((l) => l.id === subLeague)).map((l) => {

@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { formatDateTime } from '@/lib/format'
 import { formatMoney, formatOdds } from '@/lib/odds'
@@ -9,7 +10,8 @@ import { CheckIcon, CloseIcon, SgpBadge } from '../Icons'
 export function Receipt({ onClose, sheet }: { onClose?: () => void; sheet?: boolean }) {
   const receipt = useBetslip((s) => s.lastReceipt)
   const setReceipt = useBetslip((s) => s.setReceipt)
-  const bets = useAccount((s) => s.bets.filter((b) => receipt?.betIds.includes(b.id)))
+  const allBets = useAccount((s) => s.bets)
+  const bets = useMemo(() => allBets.filter((b) => receipt?.betIds.includes(b.id)), [allBets, receipt])
   const fmt = useSettings((s) => s.oddsFormat)
   const done = () => {
     setReceipt(null)
