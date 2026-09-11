@@ -40,11 +40,11 @@ export function fractionRemaining(ev: GameEvent, league: LeagueDef): number {
   const len = periodLength(league)
   let secsLeft = clockSeconds(st.clock)
   if (league.sport === 'soccer') {
-    // soccer clock counts up
+    // soccer clock counts up and is cumulative for the match (e.g. "64'" in the 2nd half)
     const elapsed = clockSeconds(st.clock)
     const total = 90 * 60
-    const played = Math.min(total, (period - 1) * 45 * 60 + Math.min(elapsed, 45 * 60 + 8 * 60))
-    return Math.max(0.01, 1 - played / total)
+    const played = Math.min(total, Math.max(elapsed, (period - 1) * 45 * 60))
+    return Math.max(0.02, 1 - played / total)
   }
   secsLeft = Math.min(len, secsLeft)
   const remaining = (reg - period) * len + secsLeft

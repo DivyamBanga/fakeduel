@@ -9,6 +9,7 @@ import { Betslip } from '../betslip/Betslip'
 import { MobileBetslip } from '../betslip/MobileBetslip'
 import { BottomTabs } from './BottomTabs'
 import { DesktopHeader } from './DesktopHeader'
+import { ErrorBoundary } from './ErrorBoundary'
 import { MobileHeader } from './MobileHeader'
 import { Sidebar } from './Sidebar'
 import { Toasts } from './Toasts'
@@ -60,11 +61,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Sidebar />
           </div>
           <main className="flex-1 min-w-0 pt-4 pb-16 px-8" style={{ maxWidth: 780 + 64 }}>
-            {children}
+            <ErrorBoundary>{children}</ErrorBoundary>
           </main>
           <aside className="w-[376px] shrink-0 sticky top-[102px] h-[calc(100dvh-102px)] mr-5 pt-4 pb-4">
             <div className="h-full rounded-md overflow-hidden" style={{ background: 'var(--fd-bg)' }}>
-              <Betslip />
+              <ErrorBoundary>
+                <Betslip />
+              </ErrorBoundary>
             </div>
           </aside>
         </div>
@@ -77,8 +80,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-dvh" style={{ background: 'var(--fd-bg)' }}>
       <MobileHeader title={title} />
-      <main className="pb-[140px]">{children}</main>
-      <MobileBetslip />
+      <main className="pb-[140px]">
+        <ErrorBoundary>{children}</ErrorBoundary>
+      </main>
+      <ErrorBoundary>
+        <MobileBetslip />
+      </ErrorBoundary>
       <BottomTabs />
       <Toasts />
     </div>
