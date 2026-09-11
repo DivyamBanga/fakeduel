@@ -13,11 +13,32 @@ function readLS<T>(key: string): { exp: number; value: T } | null {
   }
 }
 
+const MAX_PERSIST_BYTES = 48_000
+
 function writeLS(key: string, entry: { exp: number; value: unknown }) {
   try {
-    localStorage.setItem(LS_PREFIX + key, JSON.stringify(entry))
+    const json = JSON.stringify(entry)
+    if (json.length > MAX_PERSIST_BYTES) return
+    try {
+      localStorage.setItem(LS_PREFIX + key, json)
+    } catch {
+      // quota: drop every cached API payload (they are all re-fetchable) and try once more
+      clearCacheStorage()
+      localStorage.setItem(LS_PREFIX + key, json)
+    }
   } catch {
-    /* quota exceeded or private mode: ignore */
+    /* private mode or still over quota: ignore */
+  }
+}
+
+export function clearCacheStorage() {
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i)
+      if (k?.startsWith(LS_PREFIX) || k?.startsWith('fd.pre.')) localStorage.removeItem(k)
+    }
+  } catch {
+    /* ignore */
   }
 }
 
@@ -106,21 +127,26 @@ function release() {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-/** Fetch JSON with a small concurrency limit and retries (ESPN's edge drops CORS headers when rate-limited). */
+const PRIMARY_HOST = 'https://site.api.espn.com/'
+const FALLBACK_HOST = 'https://site.web.api.espn.com/'
+
+/** Fetch JSON with a small concurrency limit, retries, and an alternate ESPN host (the edge sometimes 403s or drops CORS headers). */
 export async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   await acquire()
   try {
+    const candidates = url.startsWith(PRIMARY_HOST) ? [url, FALLBACK_HOST + url.slice(PRIMARY_HOST.length)] : [url]
     let lastErr: unknown
     for (let attempt = 0; attempt < 3; attempt++) {
+      const target = candidates[Math.min(attempt, candidates.length - 1)]
       try {
-        const res = await fetch(url, init)
-        if (res.status === 429 || res.status >= 500) throw new Error(`HTTP ${res.status}`)
-        if (!res.ok) throw new NonRetryableError(`HTTP ${res.status} for ${url}`)
+        const res = await fetch(target, init)
+        if (res.status === 429 || res.status === 403 || res.status >= 500) throw new Error(`HTTP ${res.status}`)
+        if (!res.ok) throw new NonRetryableError(`HTTP ${res.status} for ${target}`)
         return (await res.json()) as T
       } catch (e) {
         if (e instanceof NonRetryableError) throw e
         lastErr = e
-        await sleep(400 * (attempt + 1) + Math.random() * 300)
+        await sleep(300 * (attempt + 1) + Math.random() * 300)
       }
     }
     throw lastErr instanceof Error ? lastErr : new Error(`Failed to fetch ${url}`)

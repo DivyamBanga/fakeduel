@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { jsonStorage } from './storage'
 import type { OddsFormat } from '@/lib/types'
 
 export type Theme = 'dark' | 'light'
@@ -33,6 +34,6 @@ export const useSettings = create<SettingsState>()(
       setKeepSelections: (keepSelectionsAfterBet) => set({ keepSelectionsAfterBet }),
       setDisplayName: (displayName) => set({ displayName }),
     }),
-    { name: 'fd.settings' },
+    { name: 'fd.settings', storage: jsonStorage() },
   ),
 )

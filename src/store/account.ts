@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { jsonStorage } from './storage'
 import type { Bet, PromoToken, Transaction } from '@/lib/types'
 import { round2 } from '@/lib/odds'
 
@@ -199,7 +200,7 @@ export const useAccount = create<AccountState>()(
       importState: (state) => set((st) => ({ ...st, ...state })),
       touch: () => set({ lastSeenAt: new Date().toISOString() }),
     }),
-    { name: 'fd.account', version: 1 },
+    { name: 'fd.account', storage: jsonStorage(), version: 1 },
   ),
 )
 

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { jsonStorage } from './storage'
 import type { GameEvent, Market, Selection } from '@/lib/types'
 
 export interface SlipSelection {
@@ -100,6 +101,6 @@ export const useBetslip = create<BetslipState>()(
         })),
       has: (id) => get().selections.some((x) => x.selection.id === id),
     }),
-    { name: 'fd.betslip', partialize: (s) => ({ selections: s.selections, stakes: s.stakes, parlayStake: s.parlayStake, teaserPoints: s.teaserPoints }) },
+    { name: 'fd.betslip', storage: jsonStorage(), partialize: (s) => ({ selections: s.selections, stakes: s.stakes, parlayStake: s.parlayStake, teaserPoints: s.teaserPoints }) },
   ),
 )

@@ -276,7 +276,7 @@ export async function fetchScoreboard(league: LeagueDef, opts: { dates?: string;
   params.set('limit', '400')
   const url = `${SITE}/${league.espnSport}/${league.espnLeague}/scoreboard?${params.toString()}`
   const key = `sb:${league.id}:${opts.dates ?? 'default'}`
-  const raw = await cached(key, () => fetchJson<EspnScoreboard>(url), { ttl: 45_000, persist: true, force: opts.force })
+  const raw = await cached(key, () => fetchJson<EspnScoreboard>(url), { ttl: 45_000, force: opts.force })
   const out: GameEvent[] = []
   for (const e of raw.events ?? []) {
     if (league.athleteEvent && e.competitions?.length > 1) {
@@ -479,7 +479,7 @@ interface EspnPropItem {
 export async function fetchPropBets(league: LeagueDef, eventId: string, ref: string): Promise<RawPropBet[]> {
   const url = secure(ref).replace(/([?&])limit=\d+/, '') + (ref.includes('?') ? '&' : '?') + 'limit=1000'
   try {
-    const raw = await cached(`props:${league.id}:${eventId}`, () => fetchJson<{ items?: EspnPropItem[] }>(url), { ttl: 10 * MINUTE, persist: true })
+    const raw = await cached(`props:${league.id}:${eventId}`, () => fetchJson<{ items?: EspnPropItem[] }>(url), { ttl: 10 * MINUTE })
     return (raw.items ?? []).map((i) => ({
       typeId: i.type.id,
       typeName: i.type.name,
@@ -513,7 +513,7 @@ interface EspnRosterAthlete {
 export async function fetchRoster(league: LeagueDef, teamId: string): Promise<AthleteInfo[]> {
   const url = `${SITE}/${league.espnSport}/${league.espnLeague}/teams/${teamId}/roster`
   try {
-    const raw = await cached(`roster:${league.id}:${teamId}`, () => fetchJson<EspnRoster>(url), { ttl: 12 * HOUR, persist: true })
+    const raw = await cached(`roster:${league.id}:${teamId}`, () => fetchJson<EspnRoster>(url), { ttl: 12 * HOUR })
     const out: AthleteInfo[] = []
     const push = (a: EspnRosterAthlete, group?: string) => {
       if (group && /injur|suspend|practice/i.test(group)) return
