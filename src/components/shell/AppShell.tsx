@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useIsDesktop } from '@/hooks/useMediaQuery'
+import { useLiveCount } from '@/hooks/useLiveCount'
 import { useSettlement } from '@/hooks/useSettlement'
 import { pruneCacheStorage } from '@/lib/cache'
 import { pruneLineMemory } from '@/lib/lines'
@@ -36,6 +37,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const theme = useSettings((s) => s.theme)
   const loc = useLocation()
   useSettlement()
+  useLiveCount()
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
