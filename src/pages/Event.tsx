@@ -19,12 +19,14 @@ import { formatLine } from '@/lib/odds'
 import { buildPopularSgp } from '@/lib/popular'
 import { FOOTBALL_STATS, BASKETBALL_STATS, HOCKEY_STATS, BASEBALL_STATS, SOCCER_STATS } from '@/lib/props'
 import type { Market } from '@/lib/types'
+import { catalogTabs } from '@/lib/catalog'
 
 const ALL_STATS = [...FOOTBALL_STATS, ...BASKETBALL_STATS, ...HOCKEY_STATS, ...BASEBALL_STATS, ...SOCCER_STATS]
 
 const TAB_ORDER = ['Same Game Parlay™', 'Popular', 'Quick Bets', 'Passing Props', 'Receiving Props', 'Rushing Props', 'TD Scorer Props', 'Player Points', 'Player Rebounds', 'Player Assists', 'Player Threes', 'Player Combos', 'Player Defense', 'Goal Scorer', 'Player Shots', 'Player Points', 'Goalie Saves', 'Batter Props', 'Pitcher Props', 'Home Run Props', 'Game Specials', 'D/ST', 'Scoring', '1st Quarter', '1st Half', '2nd Half', '2nd Quarter', '3rd Quarter', '4th Quarter', '1st Period', '2nd Period', '3rd Period', '1st Inning', '1st 5 Innings', 'Alternates']
 
 function tabFor(m: Market): string[] {
+  if (m.tabs?.length) return m.tabs
   const out = new Set<string>()
   if (m.group === 'game') out.add('Popular')
   if (m.group === 'alt') {
@@ -55,10 +57,12 @@ export function EventPage() {
   const tabs = useMemo(() => {
     const present = new Set<string>()
     for (const m of d.markets) for (const t of tabFor(m)) present.add(t)
-    const list = TAB_ORDER.filter((t, i) => present.has(t) && TAB_ORDER.indexOf(t) === i)
+    const order = [...(league ? catalogTabs(league) : []), ...TAB_ORDER]
+    const list = order.filter((t, i) => present.has(t) && order.indexOf(t) === i)
+    for (const t of present) if (!list.includes(t)) list.push(t)
     if (!list.includes('Popular')) list.unshift('Popular')
     return list
-  }, [d.markets])
+  }, [d.markets, league])
   const [tab, setTab] = useState<string>('Same Game Parlay™')
   useEffect(() => {
     if (tabs.length && !tabs.includes(tab)) setTab(tabs[0])
@@ -247,7 +251,8 @@ function groupByCategory(markets: Market[], tab: string): [string, Market[]][] {
   const out = new Map<string, Market[]>()
   for (const m of markets) {
     let key = m.category ?? m.name
-    if (m.group === 'props' || m.kind === 'prop_ladder') key = m.category ?? 'Props'
+    if (m.tabs?.length) key = (m.group === 'props' || m.kind === 'prop_ladder') && m.category ? m.category : m.name
+    else if (m.group === 'props' || m.kind === 'prop_ladder') key = m.category ?? 'Props'
     else if (m.group === 'td') key = m.name
     else if (tab === 'Same Game Parlay™' || tab === 'Popular') key = m.group === 'periods' ? (m.category ?? 'Periods') : m.group === 'alt' ? 'Alternates' : m.group === 'team' ? 'Team Totals' : m.group === 'specials' ? 'Game Specials' : (m.category ?? m.name)
     ;(out.get(key) ?? out.set(key, []).get(key)!).push(m)

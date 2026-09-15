@@ -84,15 +84,18 @@ export type MarketGroup = 'popular' | 'game' | 'props' | 'td' | 'team' | 'period
 export type MarketKind =
   | 'moneyline' | 'spread' | 'total' | 'three_way' | 'draw_no_bet'
   | 'prop_ou' | 'prop_ladder' | 'prop_yesno' | 'scorer' | 'team_total'
-  | 'period_ml' | 'period_spread' | 'period_total' | 'alt_spread' | 'alt_total'
+  | 'period_ml' | 'period_spread' | 'period_total' | 'alt_spread' | 'alt_total' | 'total_band'
   | 'btts' | 'overtime' | 'winning_margin' | 'futures'
-  | 'double_chance' | 'correct_score' | 'card' | 'double_double'
+  | 'double_chance' | 'correct_score' | 'card' | 'double_double' | 'special'
 
 export type GradingKind =
   | 'moneyline' | 'spread' | 'total' | 'team_total' | 'draw' | 'draw_no_bet'
   | 'player_stat' | 'player_ladder' | 'td_scorer' | 'first_td' | 'last_td' | 'multi_td'
-  | 'period_ml' | 'period_spread' | 'period_total' | 'btts' | 'overtime' | 'futures' | 'winning_margin'
+  | 'period_ml' | 'period_spread' | 'period_total' | 'btts' | 'overtime' | 'futures' | 'winning_margin' | 'total_band' | 'method' | 'distance' | 'rounds'
   | 'double_chance' | 'correct_score' | 'card' | 'double_double' | 'manual'
+  | 'team_first_score' | 'team_last_score' | 'score_first_and' | 'first_scoring_play' | 'every_quarter' | 'race_to'
+  | 'btts_period' | 'td_each_half' | 'both_score_n' | 'team_first_fg' | 'either_player' | 'most_stat'
+  | 'drive_result' | 'total_tds' | 'period_td' | 'odd_even' | 'double_result' | 'combo' | 'long_reception' | 'team_stat' | 'inning'
 
 export type Side = 'home' | 'away' | 'draw' | 'over' | 'under' | 'yes' | 'no'
 
@@ -112,6 +115,9 @@ export interface Grading {
   homeGoals?: number
   awayGoals?: number
   dc?: 'home_draw' | 'away_draw' | 'home_away'
+  playerIds?: string[]
+  combo?: string[]
+  label?: string
 }
 
 export interface Selection {
@@ -148,6 +154,8 @@ export interface Market {
   sortOrder?: number
   category?: string
   priced?: 'fanduel' | 'model'
+  tabs?: string[]
+  fdType?: string
 }
 
 export type BetType = 'single' | 'parlay' | 'sgp' | 'sgp_plus' | 'round_robin' | 'teaser'

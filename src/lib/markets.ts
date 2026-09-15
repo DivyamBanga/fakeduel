@@ -330,11 +330,14 @@ export function periodDefs(league: LeagueDef): PeriodDef[] {
         { key: 'p1', name: '1st Period', fraction: 1 / 3, periods: [1] },
         { key: 'p2', name: '2nd Period', fraction: 1 / 3, periods: [2] },
         { key: 'p3', name: '3rd Period', fraction: 1 / 3, periods: [3] },
+        { key: 'reg', name: '60 Minutes', fraction: 1, periods: [1, 2, 3] },
       ]
     case 'innings':
       return [
         { key: 'i1', name: '1st Inning', fraction: 1 / 9, periods: [1] },
         { key: 'f5', name: '1st 5 Innings', fraction: 5 / 9, periods: [1, 2, 3, 4, 5] },
+        ...[2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({ key: `i${n}`, name: `${n}${n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'} Inning`, fraction: 1 / 9, periods: [n] })),
+        ...[3, 4, 6, 7, 8].map((n) => ({ key: `f${n}`, name: `First ${n} Innings`, fraction: n / 9, periods: Array.from({ length: n }, (_, i) => i + 1) })),
       ]
     default:
       return []

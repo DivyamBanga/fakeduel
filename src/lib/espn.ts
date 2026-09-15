@@ -41,6 +41,7 @@ interface EspnCompetitor {
   athlete?: { id: string; displayName?: string; fullName?: string; shortName?: string; flag?: { href?: string }; headshot?: { href?: string } | string }
   linescores?: { value?: number; displayValue?: string }[]
   records?: { summary?: string; type?: string }[]
+  record?: { summary?: string; type?: string }[] // summary endpoint spells it singular
   probables?: EspnProbable[]
 }
 
@@ -136,7 +137,7 @@ function mapTeam(c: EspnCompetitor, league: LeagueDef): Team {
       logo: t.logo ?? t.logos?.[0]?.href,
       color: t.color ? `#${t.color}` : undefined,
       altColor: t.alternateColor ? `#${t.alternateColor}` : undefined,
-      record: c.records?.find((r) => r.type === 'total' || !r.type)?.summary ?? c.records?.[0]?.summary,
+      record: (c.records ?? c.record)?.find((r) => r.type === 'total' || !r.type)?.summary ?? (c.records ?? c.record)?.[0]?.summary,
     }
   }
   const a = c.athlete
@@ -252,9 +253,9 @@ export interface TeamLeadersRaw {
 }
 
 export async function fetchTeamLeaders(league: LeagueDef, teamId: string, season: number, seasonType = 2): Promise<TeamLeadersRaw> {
-  const url = `${CORE}/${league.espnSport}/leagues/${league.espnLeague}/seasons/${season}/types/${seasonType}/teams/${teamId}/leaders`
+  const url = `${CORE}/${league.espnSport}/leagues/${league.espnLeague}/seasons/${season}/types/${seasonType}/teams/${teamId}/leaders?limit=15`
   try {
-    const raw = await cached(`leaders:${league.id}:${teamId}:${season}`, () => fetchJson<EspnLeaders>(url), { ttl: 12 * HOUR, persist: true })
+    const raw = await cached(`leaders2:${league.id}:${teamId}:${season}`, () => fetchJson<EspnLeaders>(url), { ttl: 12 * HOUR, persist: true })
     const categories: TeamLeadersRaw['categories'] = {}
     for (const c of raw.categories ?? []) {
       categories[c.name] = (c.leaders ?? [])
@@ -284,7 +285,16 @@ export async function fetchScoreboard(league: LeagueDef, opts: { dates?: string;
       for (const comp of e.competitions) {
         const sub: EspnEvent = { ...e, id: comp.id, name: comp.competitors?.map((x) => x.athlete?.displayName ?? x.team?.displayName ?? '').join(' vs '), shortName: comp.competitors?.map((x) => x.athlete?.shortName ?? x.team?.abbreviation ?? '').join(' vs '), competitions: [comp] }
         const m = mapEvent(sub, league, e.name)
-        if (m) out.push(m)
+        if (m) {
+          // fight result: ESPN only gives "Final"; encode round, clock and method for grading
+          const st = comp.status
+          if (st?.type?.completed) {
+            const details = ((comp as { details?: { type?: { text?: string } }[] }).details ?? []).map((d) => d.type?.text ?? '')
+            const method = details.find((t) => /KO|TKO|Submission|Decision|Draw|No Contest|DQ/i.test(t))?.replace(/Unofficial Winner\s*/i, '') ?? (st.clock === 300 || st.displayClock === '5:00' ? 'Decision' : '')
+            m.status.detail = `Final - Rd ${st.period ?? ''}, ${st.displayClock ?? ''}${method ? ` (${method})` : ''}`
+          }
+          out.push(m)
+        }
       }
     } else {
       const m = mapEvent(e, league)
@@ -350,16 +360,19 @@ export interface EventSummary {
   scoringPlays: { text: string; teamId?: string; period: number; clock: string; athleteIds: string[]; scoringType?: string; homeScore?: number; awayScore?: number }[]
   rosters: { teamId: string; athletes: AthleteInfo[] }[]
   cards: { athleteId?: string; athleteName: string; red: boolean; minute?: string }[]
+  drives: { teamId?: string; result: string; plays: number; yards: number; isScore: boolean }[]
+  teamStats: Record<string, Record<string, number>>
   fetchedAt: number
 }
 
 interface EspnSummary {
   header?: { id?: string; competitions?: EspnCompetition[]; season?: unknown; week?: number; league?: unknown }
-  boxscore?: { players?: { team: EspnTeam; statistics: { name: string; keys?: string[]; labels?: string[]; athletes: { athlete: { id: string; displayName: string; shortName?: string; position?: { abbreviation?: string }; jersey?: string; headshot?: { href?: string } | string }; stats: string[] }[] }[] }[]; teams?: unknown[] }
+  boxscore?: { players?: { team: EspnTeam; statistics: { name: string; keys?: string[]; labels?: string[]; athletes: { athlete: { id: string; displayName: string; shortName?: string; position?: { abbreviation?: string }; jersey?: string; headshot?: { href?: string } | string }; stats: string[] }[] }[] }[]; teams?: { team: EspnTeam; statistics?: { name?: string; displayValue?: string; value?: number }[] }[] }
   leaders?: { team: EspnTeam; leaders: { name: string; displayName?: string; leaders: { displayValue: string; athlete: { id: string; displayName: string; shortName?: string; position?: { abbreviation?: string }; headshot?: { href?: string } | string; jersey?: string } }[] }[] }[]
   scoringPlays?: { text?: string; team?: { id: string }; period?: { number: number }; clock?: { displayValue?: string }; participants?: { athlete?: { id: string } }[]; scoringType?: { name?: string; abbreviation?: string }; homeScore?: number; awayScore?: number; type?: { text?: string } }[]
   rosters?: { team: EspnTeam; roster?: { athlete: { id: string; displayName: string; shortName?: string; position?: { abbreviation?: string }; jersey?: string; headshot?: { href?: string } | string }; stats?: { name?: string; abbreviation?: string; displayValue?: string; value?: number }[] }[]; homeAway?: string }[]
   gameInfo?: { venue?: { fullName?: string } }
+  drives?: { previous?: { team?: { id?: string }; result?: string; displayResult?: string; offensivePlays?: number; yards?: number; isScore?: boolean }[] }
   keyEvents?: { type?: { id?: string; text?: string }; clock?: { displayValue?: string }; period?: { number?: number }; team?: { id?: string }; participants?: { athlete?: { id?: string; displayName?: string } }[]; text?: string; scoringPlay?: boolean; scoreValue?: number; homeScore?: number; awayScore?: number }[]
 }
 
@@ -376,6 +389,17 @@ function mapAthlete(a: { id: string; displayName: string; shortName?: string; po
 }
 
 export async function fetchSummary(league: LeagueDef, eventId: string, opts: { force?: boolean } = {}): Promise<EventSummary> {
+  if (league.athleteEvent) {
+    // ESPN has no summary endpoint for bouts: build the event from the scoreboard (upcoming, then the last two weeks)
+    let evs = await fetchLeagueEvents(league, { force: opts.force }).catch(() => [] as GameEvent[])
+    let event = evs.find((e) => e.id === eventId) ?? null
+    if (!event) {
+      const now = new Date()
+      evs = await fetchScoreboard(league, { dates: `${fmtDate(new Date(now.getTime() - 14 * DAY))}-${fmtDate(now)}`, force: opts.force }).catch(() => [] as GameEvent[])
+      event = evs.find((e) => e.id === eventId) ?? null
+    }
+    return { event, boxscore: [], leaders: [], scoringPlays: [], rosters: [], cards: [], drives: [], teamStats: {}, fetchedAt: Date.now() }
+  }
   const url = `${SITE}/${league.espnSport}/${league.espnLeague}/summary?event=${eventId}`
   const raw = await cached(`sum:${league.id}:${eventId}`, () => fetchJson<EspnSummary>(url), { ttl: 30_000, force: opts.force })
   const comp = raw.header?.competitions?.[0]
@@ -426,6 +450,17 @@ export async function fetchSummary(league: LeagueDef, eventId: string, opts: { f
       return a
     }),
   }))
+  const drives: EventSummary['drives'] = (raw.drives?.previous ?? []).map((d) => ({ teamId: d.team?.id, result: (d.result ?? d.displayResult ?? '').toUpperCase(), plays: d.offensivePlays ?? 0, yards: d.yards ?? 0, isScore: !!d.isScore }))
+  const teamStats: EventSummary['teamStats'] = {}
+  for (const t of raw.boxscore?.teams ?? []) {
+    const rec: Record<string, number> = {}
+    for (const s of t.statistics ?? []) {
+      if (!s.name) continue
+      const v = typeof s.value === 'number' ? s.value : parseFloat(String(s.displayValue ?? '').replace(/,/g, '').split(/[-/]/)[0])
+      if (isFinite(v)) rec[s.name] = v
+    }
+    teamStats[t.team.id] = rec
+  }
   const cards: EventSummary['cards'] = []
   for (const k of raw.keyEvents ?? []) {
     const t = (k.type?.text ?? '').toLowerCase()
@@ -435,7 +470,7 @@ export async function fetchSummary(league: LeagueDef, eventId: string, opts: { f
       scoringPlays.push({ text: k.text ?? `${p.displayName ?? ''} Goal`, teamId: k.team?.id, period: k.period?.number ?? 0, clock: k.clock?.displayValue ?? '', athleteIds: p.id ? [p.id] : [], scoringType: 'goal', homeScore: k.homeScore, awayScore: k.awayScore })
     }
   }
-  return { event, boxscore, leaders, scoringPlays, rosters, cards, fetchedAt: Date.now() }
+  return { event, boxscore, leaders, scoringPlays, rosters, cards, drives, teamStats, fetchedAt: Date.now() }
 }
 
 /* ----------------------------- core odds + props ----------------------------- */

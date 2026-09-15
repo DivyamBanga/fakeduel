@@ -260,7 +260,7 @@ export function marketsFromOa(ev: GameEvent, league: LeagueDef, oa: Record<strin
       const pname = PERIOD_NAMES[per.key] ?? per.key
       if (per.kind === 'ml' || per.kind === 'ml3') {
         const three = per.kind === 'ml3' || m.outcomes.some((o) => /draw|tie/i.test(o.name))
-        const mk = mkMarket(ev, `pw|${per.key}`, three ? `${pname} Winner (3-Way)` : `${pname} Moneyline`, 'periods', 'period_ml', three ? 'three-col' : 'two-col', { sortOrder: 50, category: pname, priced: 'fanduel' })
+        const mk = mkMarket(ev, `${three ? 'pw3' : 'pw'}|${per.key}`, three ? `${pname} Winner (3-Way)` : `${pname} Moneyline`, 'periods', 'period_ml', three ? 'three-col' : 'two-col', { sortOrder: 50, category: pname, priced: 'fanduel' })
         const h = m.outcomes.find((o) => isHome(o.name, ev))
         const a = m.outcomes.find((o) => !isHome(o.name, ev) && !/draw|tie/i.test(o.name))
         const d = m.outcomes.find((o) => /draw|tie/i.test(o.name))

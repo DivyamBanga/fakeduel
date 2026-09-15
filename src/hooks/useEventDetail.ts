@@ -10,6 +10,7 @@ import { useOddsStore } from '@/store/odds'
 import { useSettings } from '@/store/settings'
 import { fetchEventMarkets, fetchEventsList, fetchFeatured, linesFromFeatured, matchEvent, oddsApiEnabled, PROP_MARKET_GROUPS } from '@/lib/oddsapi'
 import { marketsFromOa, mergeMarkets } from '@/lib/oamarkets'
+import { buildCatalog, makeCtx } from '@/lib/catalog'
 import type { OaMarket } from '@/lib/oddsapi'
 
 export interface EventDetail {
@@ -209,6 +210,11 @@ export function useEventDetail(leagueId: string | undefined, eventId: string | u
     const game = buildGameMarkets(event, league, lines)
     for (const m of [game.spread, game.moneyline, game.threeWay, game.dnb, game.total]) if (m) markets.push(m)
     if (!live) {
+      const catalog = buildCatalog(makeCtx(event, league, pregame, athletes, leaders, raw))
+      if (catalog.length) {
+        const fd = marketsFromOa(event, league, oaMarkets, athletes)
+        return { lines, live, markets: mergeMarkets(catalog, fd) }
+      }
       const real = realPeriodLines(raw, event)
       markets.push(...buildAltMarkets(event, league, pregame))
       markets.push(...buildTeamTotals(event, league, pregame, real.teamTotals))

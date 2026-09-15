@@ -3,6 +3,7 @@ import type { EventSummary } from './espn'
 import { americanToDecimal, combinations, round2, teaserOdds } from './odds'
 import { periodDefs, regulationPeriods } from './markets'
 import type { Bet, BetLeg, BetStatus } from './types'
+import { gradeSpecial } from './grading2'
 
 export interface LegResult {
   status: BetStatus
@@ -183,7 +184,13 @@ export function gradeLeg(leg: BetLeg, summary: EventSummary, league: LeagueDef):
       return wl(diff > 0)
     }
     case 'total': {
-      const t = home + away
+      let t = home + away
+      if (g.statKey) {
+        const hs = summary.teamStats[ev.home.team.id]?.[g.statKey]
+        const as = summary.teamStats[ev.away.team.id]?.[g.statKey]
+        if (hs === undefined || as === undefined) return { status: 'void', resultText: 'Stat unavailable' }
+        t = hs + as
+      }
       if (t === g.line) return { status: 'push', resultText: `Total ${t}` }
       return wl(g.side === 'over' ? t > (g.line ?? 0) : t < (g.line ?? 0), `Total ${t}`)
     }
@@ -200,7 +207,7 @@ export function gradeLeg(leg: BetLeg, summary: EventSummary, league: LeagueDef):
       const txt = `${ev.away.team.abbreviation} ${ps.away} - ${ev.home.team.abbreviation} ${ps.home}`
       if (g.kind === 'period_ml') {
         if (g.side === 'draw') return wl(ps.home === ps.away, txt)
-        if (ps.home === ps.away) return { status: league.sport === 'football' || league.sport === 'basketball' ? 'lost' : 'push', resultText: txt }
+        if (ps.home === ps.away) return { status: g.label === '2way' || league.sport === 'hockey' || league.sport === 'baseball' ? 'push' : 'lost', resultText: txt }
         return wl(homeSide ? ps.home > ps.away : ps.away > ps.home, txt)
       }
       if (g.kind === 'period_spread') {
@@ -260,8 +267,11 @@ export function gradeLeg(leg: BetLeg, summary: EventSummary, league: LeagueDef):
       return wl(g.side === 'yes' ? ot : !ot)
     }
     case 'winning_margin': {
-      const winnerId = home > away ? ev.home.team.id : away > home ? ev.away.team.id : null
-      const margin = Math.abs(home - away)
+      const wmScore = g.period ? periodScore(summary, league, g.period) : { home, away }
+      if (!wmScore) return { status: 'void', resultText: 'Period data unavailable' }
+      const winnerId = wmScore.home > wmScore.away ? ev.home.team.id : wmScore.away > wmScore.home ? ev.away.team.id : null
+      const margin = Math.abs(wmScore.home - wmScore.away)
+      if (!g.teamId) return wl(winnerId === null, score)
       return wl(winnerId === g.teamId && margin >= (g.rangeLow ?? 0) && margin <= (g.rangeHigh ?? 999), score)
     }
     case 'double_chance': {
@@ -271,8 +281,14 @@ export function gradeLeg(leg: BetLeg, summary: EventSummary, league: LeagueDef):
       const ok = g.dc === 'home_draw' ? hw || dr : g.dc === 'away_draw' ? aw || dr : hw || aw
       return wl(ok)
     }
-    case 'correct_score':
+    case 'correct_score': {
+      if (g.period) {
+        const ps = periodScore(summary, league, g.period)
+        if (!ps) return { status: 'void', resultText: 'Period data unavailable' }
+        return wl(ps.home === g.homeGoals && ps.away === g.awayGoals, `${ps.away}-${ps.home}`)
+      }
       return wl(home === g.homeGoals && away === g.awayGoals)
+    }
     case 'double_double': {
       if (!g.playerId) return { status: 'void' }
       const cats = ['*.points', '*.rebounds', '*.assists', '*.steals', '*.blocks']
@@ -290,6 +306,10 @@ export function gradeLeg(leg: BetLeg, summary: EventSummary, league: LeagueDef):
     case 'manual':
     case 'futures':
       return { status: 'open' }
+    default: {
+      const r = gradeSpecial({ ...leg, grading: g }, summary, league, (x) => gradingPlayerId(x), (pid, key) => extractStat(summary, pid, key))
+      if (r) return r
+    }
   }
   return { status: 'void' }
 }
