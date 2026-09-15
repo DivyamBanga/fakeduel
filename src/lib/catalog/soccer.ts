@@ -224,8 +224,11 @@ export function buildSoccer(ctx: Ctx): Market[] {
     if (!any.teamId || posRank(any.position) >= 3) continue
     const lam = any.teamId === home.team.id ? lamH : lamA
     const adj = lam / 1.35
-    const g = lg.get(id)?.line ?? 0
-    const a = la.get(id)?.line ?? 0
+    // shrink early-season per-game rates toward a league-average prior (8 games' worth)
+    const gp = ctx.leaders.find((t) => t.teamId === any.teamId)?.gamesPlayed ?? 12
+    const shrink = (rate: number, prior: number) => (rate * gp + prior * 8) / (gp + 8)
+    const g = shrink(lg.get(id)?.line ?? 0, 0.1)
+    const a = shrink(la.get(id)?.line ?? 0, 0.08)
     const sot = lsot.get(id)?.line ?? Math.max(0.15, g * 2.4)
     const shots = lsh.get(id)?.line ?? Math.max(0.3, sot * 2.2)
     const yc = lyc.get(id)?.line ?? 0.15

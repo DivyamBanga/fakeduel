@@ -283,6 +283,8 @@ export function espnLines(ctx: Ctx, match: RegExp): PlayerLine[] {
     if (seen.has(r.athleteId)) continue
     const a = ctx.athletes[r.athleteId]
     if (!a) continue
+    // ESPN's feed occasionally lists a player from another team; keep only the two rosters
+    if (a.teamId && a.teamId !== ctx.ev.home.team.id && a.teamId !== ctx.ev.away.team.id) continue
     seen.add(r.athleteId)
     out.push({ id: a.id, name: a.name, teamId: a.teamId, position: a.position, headshot: a.headshot, line: r.line })
   }

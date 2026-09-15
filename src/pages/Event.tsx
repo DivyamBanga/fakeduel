@@ -218,7 +218,7 @@ export function EventPage() {
                   </div>
                 ) : null}
                 {ms.map((m, i) => (
-                  <MarketAccordion key={m.id} ev={ev} market={m} defaultOpen={i === 0 && (tab === 'Popular' || tab === 'Quick Bets' || ms.length <= 2)} />
+                  <MarketAccordion key={m.id} ev={ev} market={m} defaultOpen={m.tabs?.length ? m.group !== 'alt' : i === 0 && (tab === 'Popular' || tab === 'Quick Bets' || ms.length <= 2)} />
                 ))}
               </div>
             ))}
@@ -258,7 +258,8 @@ function groupByCategory(markets: Market[], tab: string): [string, Market[]][] {
     ;(out.get(key) ?? out.set(key, []).get(key)!).push(m)
   }
   for (const [, ms] of out) ms.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-  return [...out.entries()]
+  // the group named after the tab (e.g. "Receiving Props") leads; shared markets like Rushing + Receiving follow
+  return [...out.entries()].sort((a, b) => Number(b[0] === tab) - Number(a[0] === tab))
 }
 
 function GameLinesCoupon({ markets, ev, league, has, toggle }: { markets: Market[]; ev: NonNullable<ReturnType<typeof useEventDetail>['event']>; league: NonNullable<ReturnType<typeof useEventDetail>['league']>; has: (id: string) => boolean; toggle: ReturnType<typeof useSlip>['toggle'] }) {

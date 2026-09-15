@@ -35,7 +35,7 @@ export const LEAGUES: LeagueDef[] = [
   L({ id: 'ncaab', sport: 'basketball', espnSport: 'basketball', espnLeague: 'mens-college-basketball', name: 'NCAAB', longName: "Men's College Basketball", icon: 'ncaab', groups: '50', daysAhead: 3, teaserSport: 'basketball', periods: 'halves' }),
   L({ id: 'ncaaw', sport: 'basketball', espnSport: 'basketball', espnLeague: 'womens-college-basketball', name: 'NCAAW', longName: "Women's College Basketball", icon: 'ncaaw', groups: '50', daysAhead: 3, teaserSport: 'basketball', periods: 'quarters' }),
   L({ id: 'mlb', sport: 'baseball', espnSport: 'baseball', espnLeague: 'mlb', name: 'MLB', longName: 'MLB', icon: 'mlb', daysAhead: 3, periods: 'innings' }),
-  L({ id: 'nhl', sport: 'hockey', espnSport: 'hockey', espnLeague: 'nhl', name: 'NHL', longName: 'NHL', icon: 'nhl', daysAhead: 4, periods: 'periods' }),
+  L({ id: 'nhl', sport: 'hockey', espnSport: 'hockey', espnLeague: 'nhl', name: 'NHL', longName: 'NHL', icon: 'nhl', daysAhead: 7, periods: 'periods' }),
   L({ id: 'epl', sport: 'soccer', espnSport: 'soccer', espnLeague: 'eng.1', name: 'Premier League', longName: 'English Premier League', icon: 'soccer', daysAhead: 8, hasDraw: true, periods: 'halves' }),
   L({ id: 'laliga', sport: 'soccer', espnSport: 'soccer', espnLeague: 'esp.1', name: 'La Liga', longName: 'Spanish La Liga', icon: 'soccer', daysAhead: 8, hasDraw: true, periods: 'halves' }),
   L({ id: 'seriea', sport: 'soccer', espnSport: 'soccer', espnLeague: 'ita.1', name: 'Serie A', longName: 'Italian Serie A', icon: 'soccer', daysAhead: 8, hasDraw: true, periods: 'halves' }),
