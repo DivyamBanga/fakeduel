@@ -86,11 +86,13 @@ export type MarketKind =
   | 'prop_ou' | 'prop_ladder' | 'prop_yesno' | 'scorer' | 'team_total'
   | 'period_ml' | 'period_spread' | 'period_total' | 'alt_spread' | 'alt_total'
   | 'btts' | 'overtime' | 'winning_margin' | 'futures'
+  | 'double_chance' | 'correct_score' | 'card' | 'double_double'
 
 export type GradingKind =
   | 'moneyline' | 'spread' | 'total' | 'team_total' | 'draw' | 'draw_no_bet'
   | 'player_stat' | 'player_ladder' | 'td_scorer' | 'first_td' | 'last_td' | 'multi_td'
   | 'period_ml' | 'period_spread' | 'period_total' | 'btts' | 'overtime' | 'futures' | 'winning_margin'
+  | 'double_chance' | 'correct_score' | 'card' | 'double_double' | 'manual'
 
 export type Side = 'home' | 'away' | 'draw' | 'over' | 'under' | 'yes' | 'no'
 
@@ -106,6 +108,10 @@ export interface Grading {
   futureId?: string
   rangeLow?: number
   rangeHigh?: number
+  playerName?: string
+  homeGoals?: number
+  awayGoals?: number
+  dc?: 'home_draw' | 'away_draw' | 'home_away'
 }
 
 export interface Selection {
@@ -141,6 +147,7 @@ export interface Market {
   layout: 'two-col' | 'three-col' | 'list' | 'ladder' | 'grid'
   sortOrder?: number
   category?: string
+  priced?: 'fanduel' | 'model'
 }
 
 export type BetType = 'single' | 'parlay' | 'sgp' | 'sgp_plus' | 'round_robin' | 'teaser'

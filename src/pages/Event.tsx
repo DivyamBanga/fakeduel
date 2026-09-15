@@ -63,6 +63,10 @@ export function EventPage() {
   useEffect(() => {
     if (tabs.length && !tabs.includes(tab)) setTab(tabs[0])
   }, [tabs, tab])
+  useEffect(() => {
+    if (d.fanduel) d.loadFanDuelTab(tab)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, d.fanduel, d.loadFanDuelTab])
   const sgp = useMemo(() => (ev && league ? buildPopularSgp(ev, league) : null), [ev, league])
 
   if (d.error || (!d.loading && !ev)) {
@@ -197,7 +201,7 @@ export function EventPage() {
 
             {(tab === 'Popular' || tab === 'Same Game Parlay™' || isLive) && gameLineMarkets.length ? (
               <Card>
-                <SectionHeader title={isLive ? 'Live Game Lines' : 'Game Lines'} right={!league.athleteEvent && !isLive ? <SgpBadge small /> : undefined} />
+                <SectionHeader title={isLive ? 'Live Game Lines' : 'Game Lines'} right={<span className="flex items-center gap-2">{d.lines?.provider === 'FanDuel' ? <span className="cond text-[10px] font-bold px-1.5 rounded-[3px]" style={{ background: '#1493ff', color: '#fff', lineHeight: '16px' }}>FANDUEL ODDS</span> : null}{!league.athleteEvent && !isLive ? <SgpBadge small /> : null}</span>} />
                 <GameLinesCoupon markets={gameLineMarkets} ev={ev} league={league} has={has} toggle={toggle} />
               </Card>
             ) : null}
@@ -215,6 +219,11 @@ export function EventPage() {
               </div>
             ))}
 
+            {d.fdLoadingTab === tab ? (
+              <div className="text-[12px] px-1 pb-2" style={{ color: 'var(--fd-fg-3)' }}>
+                Loading FanDuel prices…
+              </div>
+            ) : null}
             {d.propsLoading && !otherVisible.length ? (
               <div className="space-y-2">
                 {[0, 1, 2, 3, 4].map((i) => (

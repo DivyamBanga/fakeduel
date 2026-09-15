@@ -7,6 +7,7 @@ import { formatLine } from '@/lib/odds'
 import type { GameEvent, Market, Selection } from '@/lib/types'
 import { useSlip, eventPath } from '@/hooks/useSlip'
 import { useIsDesktop } from '@/hooks/useMediaQuery'
+import { useOddsStore } from '@/store/odds'
 import { OddsButton } from './OddsButton'
 import { TeamLogo } from './TeamLogo'
 import { ChevronRight, SgpBadge } from '../Icons'
@@ -36,6 +37,7 @@ export function EventRow({ ev, league, showLeague }: { ev: GameEvent; league: Le
   const desktop = useIsDesktop()
   const { has, toggle } = useSlip()
   const nav = useNavigate()
+  useOddsStore((s) => s.lines[ev.id]) // re-render when FanDuel lines arrive
   const { lines, live } = getDisplayLines(ev, league)
   const mk = buildGameMarkets(ev, league, lines)
   const ml = mk.moneyline ?? mk.threeWay

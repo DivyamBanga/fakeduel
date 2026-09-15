@@ -3,6 +3,7 @@ import { LEAGUE_BY_ID } from '@/data/sports'
 import { fetchLeagueEvents } from '@/lib/espn'
 import type { GameEvent } from '@/lib/types'
 import { useLiveStore } from '@/store/live'
+import { useFanDuelLines } from './useFanDuelLines'
 
 export interface LeagueEventsResult {
   events: GameEvent[]
@@ -78,6 +79,8 @@ export function useLeagueEvents(leagueIds: string[], opts: { enabled?: boolean }
       if (timer.current) window.clearInterval(timer.current)
     }
   }, [events, load, enabled])
+
+  useFanDuelLines(events)
 
   return { events, loading, error, refresh: () => load(true), loadedAt }
 }

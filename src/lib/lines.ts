@@ -1,4 +1,5 @@
 import type { LeagueDef } from '@/data/sports'
+import { useOddsStore } from '@/store/odds'
 import { liveLines } from './live'
 import { resolveLines } from './markets'
 import type { GameEvent, GameLines } from './types'
@@ -31,15 +32,23 @@ function writePre(id: string, lines: GameLines) {
   }
 }
 
-/** Pregame lines for an event; frozen at the last pregame observation once the game starts. */
+/** Pregame lines for an event; FanDuel's real lines when available, frozen at the last pregame observation once the game starts. */
 export function getPregameLines(ev: GameEvent, league: LeagueDef): GameLines {
   if (ev.status.state !== 'pre') {
     const saved = readPre(ev.id)
     if (saved) return saved
   }
-  const lines = resolveLines(ev, league)
+  const fd = useOddsStore.getState().lines[ev.id]
+  const base = resolveLines(ev, league)
+  const lines = fd ? { ...base, ...stripUndef(fd), provider: 'FanDuel', synthesized: false } : base
   if (ev.status.state === 'pre') writePre(ev.id, lines)
   return lines
+}
+
+function stripUndef<T extends object>(o: T): Partial<T> {
+  const out: Partial<T> = {}
+  for (const k of Object.keys(o) as (keyof T)[]) if (o[k] !== undefined) out[k] = o[k]
+  return out
 }
 
 /** Lines to display now: live-modelled during play, pregame otherwise. */

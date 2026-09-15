@@ -67,13 +67,23 @@ export function extractStat(summary: EventSummary, playerId: string, statKey: st
   return parseNum(raw)
 }
 
+function normPlayer(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/\b(jr|sr|ii|iii|iv)\b\.?/g, '')
+    .replace(/[^a-z0-9 ]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 function extractRaw(summary: EventSummary, playerId: string, group: string, key: string): string | null {
+  const byName = playerId.startsWith('n:') ? playerId.slice(2) : null
   for (const team of summary.boxscore) {
     for (const g of team.groups) {
       if (group !== '*' && g.name !== group) continue
       const ki = g.keys.indexOf(key)
       if (ki < 0) continue
-      const row = g.athletes.find((a) => a.athlete.id === playerId)
+      const row = g.athletes.find((a) => (byName ? normPlayer(a.athlete.name) === byName : a.athlete.id === playerId))
       if (!row) continue
       return row.stats[ki] ?? null
     }
@@ -87,7 +97,15 @@ function extractRaw(summary: EventSummary, playerId: string, group: string, key:
 }
 
 export function playerPlayed(summary: EventSummary, playerId: string): boolean {
-  return summary.boxscore.some((t) => t.groups.some((g) => g.athletes.some((a) => a.athlete.id === playerId)))
+  const byName = playerId.startsWith('n:') ? playerId.slice(2) : null
+  return summary.boxscore.some((t) => t.groups.some((g) => g.athletes.some((a) => (byName ? normPlayer(a.athlete.name) === byName : a.athlete.id === playerId))))
+}
+
+/** Grading id for a leg: ESPN athlete id when known, otherwise a name key the box score lookup understands. */
+function gradingPlayerId(g: { playerId?: string; playerName?: string }): string | undefined {
+  if (g.playerId) return g.playerId
+  if (g.playerName) return 'n:' + normPlayer(g.playerName)
+  return undefined
 }
 
 /* ----------------------------- period scores ----------------------------- */
@@ -121,13 +139,13 @@ function tdScorers(summary: EventSummary): { first: string[]; last: string[]; by
   const idsForText = (text: string): string[] => {
     const nm = nameOf(text)
     if (!nm) return []
-    const ids: string[] = []
+    const ids: string[] = ['n:' + normPlayer(nm)]
     for (const team of summary.boxscore) for (const g of team.groups) for (const a of g.athletes) if (a.athlete.name === nm || a.athlete.shortName === nm) ids.push(a.athlete.id)
     for (const r of summary.rosters) for (const a of r.athletes) if (a.name === nm || a.shortName === nm) ids.push(a.id)
     return [...new Set(ids)]
   }
-  const first = tds.length ? (tds[0].athleteIds.length ? tds[0].athleteIds : idsForText(tds[0].text)) : []
-  const last = tds.length ? (tds[tds.length - 1].athleteIds.length ? tds[tds.length - 1].athleteIds : idsForText(tds[tds.length - 1].text)) : []
+  const first = tds.length ? [...tds[0].athleteIds, ...idsForText(tds[0].text)] : []
+  const last = tds.length ? [...tds[tds.length - 1].athleteIds, ...idsForText(tds[tds.length - 1].text)] : []
   const byPeriod: Record<number, Set<string>> = {}
   for (const p of tds) {
     const ids = p.athleteIds.length ? p.athleteIds : idsForText(p.text)
@@ -140,7 +158,7 @@ export function gradeLeg(leg: BetLeg, summary: EventSummary, league: LeagueDef):
   const ev = summary.event
   if (!ev) return { status: 'open' }
   if (!ev.status.completed && ev.status.state !== 'post') return { status: 'open' }
-  const g = leg.grading
+  const g = { ...leg.grading, playerId: gradingPlayerId(leg.grading) }
   const home = ev.home.score
   const away = ev.away.score
   const homeSide = g.side === 'home' || (g.teamId !== undefined && g.teamId === ev.home.team.id && g.side !== 'away')
@@ -246,6 +264,30 @@ export function gradeLeg(leg: BetLeg, summary: EventSummary, league: LeagueDef):
       const margin = Math.abs(home - away)
       return wl(winnerId === g.teamId && margin >= (g.rangeLow ?? 0) && margin <= (g.rangeHigh ?? 999), score)
     }
+    case 'double_chance': {
+      const hw = home > away
+      const aw = away > home
+      const dr = home === away
+      const ok = g.dc === 'home_draw' ? hw || dr : g.dc === 'away_draw' ? aw || dr : hw || aw
+      return wl(ok)
+    }
+    case 'correct_score':
+      return wl(home === g.homeGoals && away === g.awayGoals)
+    case 'double_double': {
+      if (!g.playerId) return { status: 'void' }
+      const cats = ['*.points', '*.rebounds', '*.assists', '*.steals', '*.blocks']
+      const vals = cats.map((k) => extractStat(summary, g.playerId!, k))
+      if (vals.every((v) => v === null)) return summary.boxscore.length ? { status: 'void', resultText: 'Did not play' } : { status: 'open' }
+      const n = vals.filter((v) => (v ?? 0) >= 10).length
+      return wl(n >= (g.count ?? 2), `${n} categories with 10+`)
+    }
+    case 'card': {
+      if (!g.playerId) return { status: 'void' }
+      const wantRed = (g.count ?? 1) >= 2
+      const hit = summary.cards.some((c) => (c.athleteId === g.playerId || (g.playerId!.startsWith('n:') && normPlayer(c.athleteName) === g.playerId!.slice(2))) && (wantRed ? c.red : true))
+      return wl(hit)
+    }
+    case 'manual':
     case 'futures':
       return { status: 'open' }
   }

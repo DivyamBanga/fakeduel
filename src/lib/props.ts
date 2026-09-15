@@ -52,6 +52,7 @@ export const FOOTBALL_STATS: StatDef[] = [
   F('rec_yds', 'receiving.receivingYards', 'Receiving Yds', 'REC YDS', 'Receiving Props', (l) => Math.max(12, 0.55 * l), -114, 20, { ladderStep: 10, ladderCount: 5 }),
   F('receptions', 'receiving.receptions', 'Total Receptions', 'RECEPTIONS', 'Receiving Props', (l) => Math.max(1.4, 0.4 * l), -115, 21, { ladderStep: 1, ladderCount: 4, integer: true }),
   F('longest_rec', 'receiving.longReception', 'Longest Reception', 'LONGEST REC', 'Receiving Props', (l) => Math.max(6, 0.4 * l), -114, 22),
+  F('pass_rush_rec_yds', 'passing.passingYards+rushing.rushingYards+receiving.receivingYards', 'Pass + Rush + Rec Yds', 'TOTAL YDS', 'Passing Props', (l) => Math.max(45, 0.27 * l), -114, 8, { ladderStep: 25, ladderCount: 3 }),
   F('kick_pts', 'kicking.totalKickingPoints', 'Kicking Points', 'KICKING PTS', 'Scoring', (l) => Math.max(3, 0.45 * l), -114, 30, { integer: true }),
   F('fg_made', 'kicking.fieldGoalsMade/fieldGoalAttempts#0', 'Field Goals Made', 'FG MADE', 'Scoring', () => 1.0, -120, 31, { integer: true }),
   F('xp_made', 'kicking.extraPointsMade/extraPointAttempts#0', 'Extra Points Made', 'XP MADE', 'Scoring', () => 1.1, -120, 32, { integer: true }),
@@ -67,8 +68,11 @@ export const BASKETBALL_STATS: StatDef[] = [
   F('pra', '*.points+*.rebounds+*.assists', 'Pts + Reb + Ast', 'PRA', 'Player Combos', (l) => Math.max(5, 0.28 * l), -114, 5, { ladderStep: 5, ladderCount: 3, integer: true }),
   F('pr', '*.points+*.rebounds', 'Pts + Reb', 'P+R', 'Player Combos', (l) => Math.max(4.5, 0.3 * l), -114, 6, { integer: true }),
   F('pa', '*.points+*.assists', 'Pts + Ast', 'P+A', 'Player Combos', (l) => Math.max(4.5, 0.3 * l), -114, 7, { integer: true }),
+  F('ra', '*.rebounds+*.assists', 'Reb + Ast', 'R+A', 'Player Combos', (l) => Math.max(3, 0.35 * l), -114, 7.5, { integer: true }),
   F('steals', '*.steals', 'Steals', 'STL', 'Player Defense', () => 0.9, -120, 8, { integer: true }),
   F('blocks', '*.blocks', 'Blocks', 'BLK', 'Player Defense', () => 0.9, -120, 9, { integer: true }),
+  F('bs', '*.blocks+*.steals', 'Blocks + Steals', 'BLK+STL', 'Player Defense', () => 1.2, -120, 9.5, { integer: true }),
+  F('turnovers', '*.turnovers', 'Turnovers', 'TO', 'Player Defense', () => 1.3, -120, 9.7, { integer: true }),
 ]
 
 export const HOCKEY_STATS: StatDef[] = [
@@ -76,6 +80,9 @@ export const HOCKEY_STATS: StatDef[] = [
   F('points', '*.points', 'Points', 'PTS', 'Player Points', () => 0.85, -125, 2, { integer: true }),
   F('assists', '*.assists', 'Assists', 'AST', 'Player Points', () => 0.7, -130, 3, { integer: true }),
   F('saves', '*.saves', 'Saves', 'SAVES', 'Goalie Saves', (l) => Math.max(4, 0.2 * l), -114, 4, { ladderStep: 3, ladderCount: 3, integer: true, positions: ['G'] }),
+  F('goals', '*.goals', 'Goals', 'G', 'Player Points', () => 0.6, -130, 2.5, { integer: true }),
+  F('blocked', '*.blockedShots', 'Blocked Shots', 'BLK', 'Player Shots', (l) => Math.max(1, 0.5 * l), -120, 1.5, { integer: true }),
+  F('ppp', '*.powerPlayGoals+*.powerPlayAssists', 'Power Play Points', 'PPP', 'Player Points', () => 0.6, -130, 3.5, { integer: true }),
 ]
 
 export const BASEBALL_STATS: StatDef[] = [
@@ -84,10 +91,13 @@ export const BASEBALL_STATS: StatDef[] = [
   F('runs', 'batting.runs', 'Runs Scored', 'RUNS', 'Batter Props', () => 0.8, -114, 3, { integer: true }),
   F('hr', 'batting.homeRuns', 'Home Runs', 'HR', 'Home Run Props', () => 0.45, -114, 4, { integer: true }),
   F('bat_k', 'batting.strikeouts', 'Batter Strikeouts', 'K', 'Batter Props', () => 0.9, -114, 5, { integer: true }),
+  F('hrr', 'batting.hits+batting.runs+batting.RBIs', 'Hits + Runs + RBIs', 'H+R+RBI', 'Batter Props', () => 1.4, -114, 5.5, { integer: true }),
+  F('walks', 'batting.walks', 'Walks', 'BB', 'Batter Props', () => 0.7, -120, 5.7, { integer: true }),
   F('p_k', 'pitching.strikeouts', 'Strikeouts', 'K', 'Pitcher Props', (l) => Math.max(1.8, 0.35 * l), -114, 10, { ladderStep: 1, ladderCount: 4, integer: true }),
   F('p_outs', 'pitching.outs', 'Outs Recorded', 'OUTS', 'Pitcher Props', () => 3.6, -114, 11, { integer: true }),
   F('p_er', 'pitching.earnedRuns', 'Earned Runs', 'ER', 'Pitcher Props', () => 1.6, -114, 12, { integer: true }),
   F('p_hits', 'pitching.hits', 'Hits Allowed', 'H', 'Pitcher Props', () => 2, -114, 13, { integer: true }),
+  F('p_walks', 'pitching.walks', 'Walks Allowed', 'BB', 'Pitcher Props', () => 1.2, -114, 14, { integer: true }),
 ]
 
 export const SOCCER_STATS: StatDef[] = [

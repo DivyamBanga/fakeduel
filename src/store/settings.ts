@@ -12,6 +12,12 @@ interface SettingsState {
   keepSelectionsAfterBet: boolean
   quickBetAmounts: number[]
   displayName: string
+  oddsApiKey: string
+  useFanDuelPrices: boolean
+  oddsApiStatus: { remaining: number | null; used: number | null; lastError: string | null; lastFetchAt: number | null }
+  setOddsApiKey: (k: string) => void
+  setUseFanDuelPrices: (v: boolean) => void
+  setOddsApiStatus: (p: Partial<SettingsState['oddsApiStatus']>) => void
   setTheme: (t: Theme) => void
   setOddsFormat: (f: OddsFormat) => void
   setAcceptOddsMovements: (v: boolean) => void
@@ -28,6 +34,12 @@ export const useSettings = create<SettingsState>()(
       keepSelectionsAfterBet: false,
       quickBetAmounts: [10, 20, 50, 100],
       displayName: 'Divyam',
+      oddsApiKey: '',
+      useFanDuelPrices: true,
+      oddsApiStatus: { remaining: null, used: null, lastError: null, lastFetchAt: null },
+      setOddsApiKey: (oddsApiKey) => set({ oddsApiKey, oddsApiStatus: { remaining: null, used: null, lastError: null, lastFetchAt: null } }),
+      setUseFanDuelPrices: (useFanDuelPrices) => set({ useFanDuelPrices }),
+      setOddsApiStatus: (p) => set((st) => ({ oddsApiStatus: { ...st.oddsApiStatus, ...p } })),
       setTheme: (theme) => set({ theme }),
       setOddsFormat: (oddsFormat) => set({ oddsFormat }),
       setAcceptOddsMovements: (acceptOddsMovements) => set({ acceptOddsMovements }),

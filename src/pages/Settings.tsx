@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { clearCacheStorage } from '@/lib/cache'
 import { Toggle } from '@/components/betslip/Betslip'
 import { Card, SectionHeader } from '@/components/shell/SectionHeader'
 import type { OddsFormat } from '@/lib/types'
@@ -83,6 +84,30 @@ export function SettingsPage() {
         </Row>
         <Row label="Odds format">
           <Segment<OddsFormat> value={s.oddsFormat} options={[{ id: 'american', label: 'American' }, { id: 'decimal', label: 'Decimal' }, { id: 'fractional', label: 'Fractional' }]} onChange={s.setOddsFormat} />
+        </Row>
+      </Card>
+      <Card>
+        <SectionHeader title="FanDuel odds (The Odds API)" />
+        <div className="px-4 py-3 text-[13px] leading-5" style={{ color: 'var(--fd-fg-2)' }}>
+          Paste a free key from <a href="https://the-odds-api.com" target="_blank" rel="noreferrer" style={{ color: 'var(--fd-link)' }}>the-odds-api.com</a> and game lines, alternates and player props switch to FanDuel's actual prices wherever FanDuel posts them. Prices are cached so 500 credits a month covers normal use.
+        </div>
+        <Row label="API key">
+          <input
+            value={s.oddsApiKey}
+            onChange={(e) => s.setOddsApiKey(e.target.value.trim())}
+            placeholder="Paste key"
+            spellCheck={false}
+            className="h-9 px-3 rounded border text-[13px] w-[220px] font-mono"
+            style={{ borderColor: 'var(--fd-line)', background: 'var(--fd-input-bg)', color: 'var(--fd-fg)' }}
+          />
+        </Row>
+        <Row label="Use FanDuel prices" sub={s.oddsApiKey ? (s.oddsApiStatus.lastError ? s.oddsApiStatus.lastError : s.oddsApiStatus.remaining !== null ? `${s.oddsApiStatus.remaining} credits left this month` : 'Key saved. Prices load on the next page you open.') : 'Add a key to enable'}>
+          <Toggle on={s.useFanDuelPrices} onChange={s.setUseFanDuelPrices} />
+        </Row>
+        <Row label="Clear cached odds" sub="Forces fresh prices on the next load (uses credits)">
+          <button onClick={() => { clearCacheStorage(); try { for (let i = localStorage.length - 1; i >= 0; i--) { const k = localStorage.key(i); if (k?.startsWith('fd.oa.')) localStorage.removeItem(k) } } catch { /* ignore */ } setMsg('Cached odds cleared.') }} className="h-9 px-4 rounded border text-[13px] font-semibold" style={{ borderColor: '#ced4db', color: 'var(--fd-fg)' }}>
+            Clear
+          </button>
         </Row>
       </Card>
       <Card>

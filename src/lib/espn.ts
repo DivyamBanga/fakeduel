@@ -349,6 +349,7 @@ export interface EventSummary {
   leaders: { teamId: string; category: string; leaders: { athlete: AthleteInfo; value: string }[] }[]
   scoringPlays: { text: string; teamId?: string; period: number; clock: string; athleteIds: string[]; scoringType?: string; homeScore?: number; awayScore?: number }[]
   rosters: { teamId: string; athletes: AthleteInfo[] }[]
+  cards: { athleteId?: string; athleteName: string; red: boolean; minute?: string }[]
   fetchedAt: number
 }
 
@@ -357,8 +358,9 @@ interface EspnSummary {
   boxscore?: { players?: { team: EspnTeam; statistics: { name: string; keys?: string[]; labels?: string[]; athletes: { athlete: { id: string; displayName: string; shortName?: string; position?: { abbreviation?: string }; jersey?: string; headshot?: { href?: string } | string }; stats: string[] }[] }[] }[]; teams?: unknown[] }
   leaders?: { team: EspnTeam; leaders: { name: string; displayName?: string; leaders: { displayValue: string; athlete: { id: string; displayName: string; shortName?: string; position?: { abbreviation?: string }; headshot?: { href?: string } | string; jersey?: string } }[] }[] }[]
   scoringPlays?: { text?: string; team?: { id: string }; period?: { number: number }; clock?: { displayValue?: string }; participants?: { athlete?: { id: string } }[]; scoringType?: { name?: string; abbreviation?: string }; homeScore?: number; awayScore?: number; type?: { text?: string } }[]
-  rosters?: { team: EspnTeam; roster?: { athlete: { id: string; displayName: string; shortName?: string; position?: { abbreviation?: string }; jersey?: string; headshot?: { href?: string } | string } }[]; homeAway?: string }[]
+  rosters?: { team: EspnTeam; roster?: { athlete: { id: string; displayName: string; shortName?: string; position?: { abbreviation?: string }; jersey?: string; headshot?: { href?: string } | string }; stats?: { name?: string; abbreviation?: string; displayValue?: string; value?: number }[] }[]; homeAway?: string }[]
   gameInfo?: { venue?: { fullName?: string } }
+  keyEvents?: { type?: { id?: string; text?: string }; clock?: { displayValue?: string }; period?: { number?: number }; team?: { id?: string }; participants?: { athlete?: { id?: string; displayName?: string } }[]; text?: string; scoringPlay?: boolean; scoreValue?: number; homeScore?: number; awayScore?: number }[]
 }
 
 function mapAthlete(a: { id: string; displayName: string; shortName?: string; position?: { abbreviation?: string }; jersey?: string; headshot?: { href?: string } | string }, teamId?: string): AthleteInfo {
@@ -413,8 +415,27 @@ export async function fetchSummary(league: LeagueDef, eventId: string, opts: { f
     homeScore: p.homeScore,
     awayScore: p.awayScore,
   }))
-  const rosters = (raw.rosters ?? []).map((r) => ({ teamId: r.team.id, athletes: (r.roster ?? []).map((x) => mapAthlete(x.athlete, r.team.id)) }))
-  return { event, boxscore, leaders, scoringPlays, rosters, fetchedAt: Date.now() }
+  const rosters = (raw.rosters ?? []).map((r) => ({
+    teamId: r.team.id,
+    athletes: (r.roster ?? []).map((x) => {
+      const a = mapAthlete(x.athlete, r.team.id) as AthleteInfo & { stats?: Record<string, string> }
+      if (x.stats?.length) {
+        a.stats = {}
+        for (const s of x.stats) if (s.name) a.stats[s.name] = s.displayValue ?? String(s.value ?? '')
+      }
+      return a
+    }),
+  }))
+  const cards: EventSummary['cards'] = []
+  for (const k of raw.keyEvents ?? []) {
+    const t = (k.type?.text ?? '').toLowerCase()
+    const p = k.participants?.[0]?.athlete
+    if (/card/.test(t) && p) cards.push({ athleteId: p.id, athleteName: p.displayName ?? '', red: /red/.test(t), minute: k.clock?.displayValue })
+    if ((k.scoringPlay || /goal/.test(t)) && !/own goal/.test(t) && p && !scoringPlays.some((s) => s.clock === k.clock?.displayValue && s.text === (k.text ?? ''))) {
+      scoringPlays.push({ text: k.text ?? `${p.displayName ?? ''} Goal`, teamId: k.team?.id, period: k.period?.number ?? 0, clock: k.clock?.displayValue ?? '', athleteIds: p.id ? [p.id] : [], scoringType: 'goal', homeScore: k.homeScore, awayScore: k.awayScore })
+    }
+  }
+  return { event, boxscore, leaders, scoringPlays, rosters, cards, fetchedAt: Date.now() }
 }
 
 /* ----------------------------- core odds + props ----------------------------- */

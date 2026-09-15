@@ -6,6 +6,11 @@ import { buildAltMarkets, buildGameMarkets, buildPeriodMarkets, buildSpecials, b
 import { buildPropMarkets, buildQuickBets, realPeriodLines, type TeamLeaders } from '@/lib/props'
 import type { AthleteInfo, GameEvent, GameLines, Market } from '@/lib/types'
 import { useLiveStore } from '@/store/live'
+import { useOddsStore } from '@/store/odds'
+import { useSettings } from '@/store/settings'
+import { fetchEventMarkets, fetchEventsList, fetchFeatured, linesFromFeatured, matchEvent, oddsApiEnabled, PROP_MARKET_GROUPS } from '@/lib/oddsapi'
+import { marketsFromOa, mergeMarkets } from '@/lib/oamarkets'
+import type { OaMarket } from '@/lib/oddsapi'
 
 export interface EventDetail {
   league: LeagueDef | undefined
@@ -18,6 +23,9 @@ export interface EventDetail {
   propsLoading: boolean
   error: string | null
   refresh: () => void
+  fanduel: boolean
+  loadFanDuelTab: (tab: string) => void
+  fdLoadingTab: string | null
 }
 
 function gamesFromRecord(record?: string): number | undefined {
@@ -40,6 +48,12 @@ export function useEventDetail(leagueId: string | undefined, eventId: string | u
   const [error, setError] = useState<string | null>(null)
   const setStoreSummary = useLiveStore((s) => s.setSummary)
   const gen = useRef(0)
+  const [oaId, setOaId] = useState<string | null>(null)
+  const [oaMarkets, setOaMarkets] = useState<Record<string, OaMarket>>({})
+  const [fdLoadingTab, setFdLoadingTab] = useState<string | null>(null)
+  const apiKey = useSettings((s) => s.oddsApiKey)
+  const useFd = useSettings((s) => s.useFanDuelPrices)
+  const fdLines = useOddsStore((s) => (eventId ? s.lines[eventId] : undefined))
 
   const load = useCallback(
     async (force = false) => {
@@ -96,6 +110,28 @@ export function useEventDetail(leagueId: string | undefined, eventId: string | u
           setLeaders(ls)
         }
         setAthletes(map)
+        if (oddsApiEnabled() && ev.status.state === 'pre') {
+          try {
+            const known = useOddsStore.getState().oaIds[eventId]
+            if (known) setOaId(known)
+            else {
+              const list = await fetchEventsList(league)
+              const oa = matchEvent(ev, list)
+              if (oa) setOaId(oa.id)
+            }
+            if (!useOddsStore.getState().lines[eventId]) {
+              const feat = await fetchFeatured(league)
+              const oa = matchEvent(ev, feat)
+              if (oa) {
+                const l = linesFromFeatured(ev, oa)
+                useOddsStore.getState().setLeague(league.id, l ? { [eventId]: l } : {}, { [eventId]: oa.id })
+                setOaId(oa.id)
+              }
+            }
+          } catch {
+            /* models remain */
+          }
+        }
       } catch (e) {
         if (gen.current !== my) return
         setError((e as Error).message)
@@ -114,8 +150,32 @@ export function useEventDetail(leagueId: string | undefined, eventId: string | u
     setAthletes({})
     setLeaders([])
     setCoreLines(undefined)
+    setOaId(null)
+    setOaMarkets({})
     load()
   }, [load])
+
+  const loadFanDuelTab = useCallback(
+    async (tab: string) => {
+      if (!league || !oaId || !oddsApiEnabled()) return
+      const groups = PROP_MARKET_GROUPS[league.sport] ?? {}
+      const keys = groups[tab] ?? (tab === 'Popular' || tab === 'Same Game Parlay™' ? [...(groups['Alternates'] ?? []), ...(groups['Scoring'] ?? [])] : [])
+      const missing = keys.filter((k) => !(k in oaMarkets))
+      if (!missing.length) return
+      setFdLoadingTab(tab)
+      try {
+        const got = await fetchEventMarkets(league, oaId, missing)
+        setOaMarkets((prev) => {
+          const next = { ...prev }
+          for (const k of missing) next[k] = got[k] ?? { key: k, outcomes: [] }
+          return next
+        })
+      } finally {
+        setFdLoadingTab(null)
+      }
+    },
+    [league, oaId, oaMarkets],
+  )
 
   // live polling
   const state = summary?.event?.status.state
@@ -158,11 +218,14 @@ export function useEventDetail(leagueId: string | undefined, eventId: string | u
       markets.push(...props)
       const quick = buildQuickBets(event, props)
       if (quick.selections.length) markets.push(quick)
+      const fd = marketsFromOa(event, league, oaMarkets, athletes)
+      return { lines, live, markets: mergeMarkets(markets, fd) }
     } else {
       markets.push(...buildTeamTotals(event, league, lines))
     }
     return { lines, live, markets }
-  }, [event, league, raw, athletes, leaders])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event, league, raw, athletes, leaders, oaMarkets, fdLines, apiKey, useFd])
 
-  return { league, event, summary, lines: built.lines, live: built.live, markets: built.markets, loading, propsLoading, error, refresh: () => load(true) }
+  return { league, event, summary, lines: built.lines, live: built.live, markets: built.markets, loading, propsLoading, error, refresh: () => load(true), fanduel: !!oaId, loadFanDuelTab, fdLoadingTab }
 }
