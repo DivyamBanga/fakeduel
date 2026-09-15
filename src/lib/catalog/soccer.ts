@@ -74,16 +74,18 @@ export function buildSoccer(ctx: Ctx): Market[] {
   add(dnb, 'home', home.team.displayName, priceFromProb(pH / (pH + pA), 0.05), { kind: 'draw_no_bet', side: 'home', teamId: home.team.id }, { teamId: home.team.id })
   add(dnb, 'away', away.team.displayName, priceFromProb(pA / (pH + pA), 0.05), { kind: 'draw_no_bet', side: 'away', teamId: away.team.id }, { teamId: away.team.id })
   out.push(dnb)
-  const tot = mkm(ctx, 'total', 'Over/Under 2.5 Goals', { tabs: pop, group: 'game', kind: 'total', layout: 'two-col', sort: sort++, line: 2.5, fdType: 'OVER_UNDER_25' })
-  const realT = lines.total === 2.5 && lines.overOdds !== undefined && lines.underOdds !== undefined
-  add(tot, 'over', 'Over 2.5 Goals', realT ? lines.overOdds! : priceFromProb(pOver(2.5), 0.06), { kind: 'total', side: 'over', line: 2.5 }, { line: 2.5 })
-  add(tot, 'under', 'Under 2.5 Goals', realT ? lines.underOdds! : priceFromProb(1 - pOver(2.5), 0.06), { kind: 'total', side: 'under', line: 2.5 }, { line: 2.5 })
+  // main total: the posted line (with its real odds when ESPN carries them), otherwise 2.5 from the model
+  const mainT = lines.total ?? 2.5
+  const realT = lines.total !== undefined && lines.overOdds !== undefined && lines.underOdds !== undefined
+  const tot = mkm(ctx, 'total', `Over/Under ${mainT} Goals`, { tabs: pop, group: 'game', kind: 'total', layout: 'two-col', sort: sort++, line: mainT, fdType: `OVER_UNDER_${mainT * 10}` })
+  add(tot, 'over', `Over ${mainT} Goals`, realT ? lines.overOdds! : priceFromProb(pOver(mainT), 0.06), { kind: 'total', side: 'over', line: mainT }, { line: mainT })
+  add(tot, 'under', `Under ${mainT} Goals`, realT ? lines.underOdds! : priceFromProb(1 - pOver(mainT), 0.06), { kind: 'total', side: 'under', line: mainT }, { line: mainT })
   out.push(tot)
   out.push(yesNo(ctx, 'btts', 'Both Teams To Score', pBtts, 0.06, { tabs: [...pop, TAB.GOALS, TAB.TEAM_PROPS], group: 'specials', sort: sort++, category: 'Goals', fdType: 'BOTH_TEAMS_TO_SCORE' }, { kind: 'btts' }))
 
   /* ---------- goals ---------- */
   const goalsTabs = [TAB.SGP, TAB.GOALS]
-  for (const line of [0.5, 1.5, 3.5, 4.5, 5.5, 6.5]) {
+  for (const line of [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5].filter((l) => l !== mainT)) {
     const po = pOver(line)
     if (po < 0.015 || po > 0.985) continue
     const m = mkm(ctx, `ou|${line}`, `Over/Under ${line} Goals`, { tabs: line <= 1.5 || line === 3.5 || line === 4.5 ? [...pop, TAB.GOALS] : goalsTabs, group: 'alt', kind: 'total', layout: 'two-col', sort: 10 + line, line, fdType: `OVER_UNDER_${line * 10}` })
